@@ -25,7 +25,7 @@ while(<CONFIG>) {
 }
 
 
-my $dbh = DBI->connect("dbi:mysql:{$opts{'db_name'}}\@{$opts{'db_host'}}", $opts{'db_user'}, $opts{'db_password'});
+my $dbh = DBI->connect("dbi:mysql:$opts{'db_name'}\@$opts{'db_host'}", $opts{'db_user'}, $opts{'db_password'});
 
 # 1. get last 3 from db
 my $sql = 'SELECT n, date_posted, id From strip Order by n desc LIMIT 3';
