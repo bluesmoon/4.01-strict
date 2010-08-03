@@ -25,7 +25,7 @@ while(<CONFIG>) {
 }
 
 
-my $dbh = DBI->connect("dbi:mysql:$opts{'db_name'}\@$opts{'db_host'}", $opts{'db_user'}, $opts{'db_password'});
+my $dbh = DBI->connect("dbi:mysql:$opts{'db_name'};host=$opts{'db_host'}", $opts{'db_user'}, $opts{'db_password'}) || die "Could not connect to db: $!";
 
 # 1. get last 3 from db
 my $sql = 'SELECT n, date_posted, id From strip Order by n desc LIMIT 3';
@@ -50,6 +50,7 @@ if($response->code != 200) {
 my $json = new JSON;
 $json->utf8();
 my $flickr_strips = $json->decode($response->content);
+$flickr_strips = $flickr_strips->{'query'}{'results'}{'photo'};
 
 # 3. find first flickr item greater than last db item
 
