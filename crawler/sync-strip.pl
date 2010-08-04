@@ -77,10 +77,10 @@ if(scalar @$db_strips) {
 
 # 4. fetch additional info for each photo not in db
 $yql = sprintf 'SELECT id, description, dates.posted From flickr.photos.info Where photo_id IN (%s)',
-		join ',', map { $_->['id'] } @flickr_strips;
+		join ',', map { $_->{'id'} } @flickr_strips;
 $url->query_form( q => $yql, format => 'json', callback => '' );
 
-my $response = $ua->get($url->canonical);
+$response = $ua->get($url->canonical);
 
 if($response->code != 200) {
 	die 'YQL said ' . $response->code . "\n";
@@ -106,9 +106,7 @@ $sql = sprintf
 		date_posted,
 		id, farm, secret, server,
 		title, description
-	) VALUES (
-		%s
-	)',
+	) VALUES (%s)',
 	join '), (', map {
 		my $tuple = $_;
 		join ',', map { $dbh->quote($tuple->{$_} || '') } qw(date_posted id farm secret server title description)
