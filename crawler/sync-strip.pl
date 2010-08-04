@@ -109,7 +109,9 @@ $sql = sprintf
 	) VALUES (%s)',
 	join '), (', map {
 		my $tuple = $_;
-		join ',', map { $dbh->quote($tuple->{$_} || '') } qw(date_posted id farm secret server title description)
+		sprintf 'FROM_UNIXTIME(%s), %s',
+			$dbh->quote($tuple->{'date_posted'}),
+			join ',', map { $dbh->quote($tuple->{$_} || '') } qw(id farm secret server title description)
 	} @flickr_strips;
 
 
