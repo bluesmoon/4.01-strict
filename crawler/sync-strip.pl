@@ -113,4 +113,5 @@ $sql = sprintf
 	} @flickr_strips;
 
 
+$dbh->do($sql);
 $dbh->disconnect();
