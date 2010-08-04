@@ -56,7 +56,7 @@ $url->query_form( q => $yql, photoset => $opts{'photoset_id'}, format => 'json',
 my $response = $ua->get($url->canonical);
 
 if($response->code != 200) {
-	die 'YQL said ' . $response->code . "\n";
+	die 'YQL said ' . $response->code . "\n$yql\n";
 }
 
 my $flickr_strips = $json->decode($response->content);
@@ -65,7 +65,7 @@ my @flickr_strips = @{$flickr_strips->{'query'}{'results'}{'photo'}};
 # 3. find first flickr item greater than last db item
 my ($start_index, $end_index) = (0, $#flickr_strips);
 if(scalar @$db_strips) {
-	my $last_id = $db_strips->{'id'};
+	my $last_id = $db_strips->[0]{'id'};
 
 	for( ; $start_index <= $end_index && $flickr_strips[$start_index]{'id'} != $last_id; $start_index++) {
 		;
@@ -75,6 +75,11 @@ if(scalar @$db_strips) {
 
 @flickr_strips = @flickr_strips[$start_index..$end_index] if $start_index > 0;
 
+if(scalar @flickr_strips == 0) {
+	# nothing more to do
+	exit 0;
+}
+
 # 4. fetch additional info for each photo not in db
 $yql = sprintf 'SELECT id, description, dates.posted From flickr.photos.info Where photo_id IN (%s)',
 		join ',', map { $_->{'id'} } @flickr_strips;
@@ -83,7 +88,7 @@ $url->query_form( q => $yql, format => 'json', callback => '' );
 $response = $ua->get($url->canonical);
 
 if($response->code != 200) {
-	die 'YQL said ' . $response->code . "\n";
+	die 'YQL said ' . $response->code . "\n$yql\n";
 }
 
 my $flickr_more = $json->decode($response->content);
