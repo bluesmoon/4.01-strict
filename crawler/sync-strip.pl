@@ -51,20 +51,20 @@ if($response->code != 200) {
 my $json = new JSON;
 $json->utf8();
 my $flickr_strips = $json->decode($response->content);
-$flickr_strips = $flickr_strips->{'query'}{'results'}{'photo'};
+my @flickr_strips = @{$flickr_strips->{'query'}{'results'}{'photo'}};
 
 # 3. find first flickr item greater than last db item
-my ($start_index, $end_index) = (0, $#$flickr_strips);
+my ($start_index, $end_index) = (0, $#flickr_strips);
 if(scalar @$db_strips) {
 	my $last_id = $db_strips->{'id'};
 
-	for( ; $start_index <= $end_index && $flickr_strips->[$start_index]{'id'} != $last_id; $start_index++) {
+	for( ; $start_index <= $end_index && $flickr_strips[$start_index]{'id'} != $last_id; $start_index++) {
 		;
 	}
 	$start_index++;
 }
 
-my @flickr_strips = $flickr_strips->[$start_index..$end_index];
+my @flickr_strips = @flickr_strips[$start_index..$end_index];
 
 # 4. fetch additional info for each photo not in db
 
