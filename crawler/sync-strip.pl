@@ -28,7 +28,7 @@ while(<CONFIG>) {
 my $dbh = DBI->connect("dbi:mysql:$opts{'db_name'};host=$opts{'db_host'}", $opts{'db_user'}, $opts{'db_password'}) || die "Could not connect to db: $!";
 
 # 1. get last 3 from db
-my $sql = 'SELECT n, date_posted, id From strip Order by n desc LIMIT 3';
+my $sql = 'SELECT n, date_posted, id From strip Order by n desc LIMIT 1';
 my $db_strips = $dbh->selectall_arrayref($sql, { Slice => {} });
 
 # 2. get everything from flickr
@@ -53,6 +53,18 @@ my $flickr_strips = $json->decode($response->content);
 $flickr_strips = $flickr_strips->{'query'}{'results'}{'photo'};
 
 # 3. find first flickr item greater than last db item
+my $start_index=0;
+if(scalar @$db_strips) {
+	my $last_id = $db_strips->{'id'};
+
+	for( ; $start_index < @$flickr_strips && $flickr_strips->[$start_index]{'id'} != $last_id; $start_index++) {
+		;
+	}
+	$start_index++;
+}
+if($start_index < @$flickr_strips) {
+	@$flickr_strips = @{$flickr_strips->[$start_index..$#$flickr_strips]};
+}
 
 # 4. fetch additional info for each photo not in db
 
