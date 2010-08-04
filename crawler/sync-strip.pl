@@ -13,6 +13,7 @@ my %opts = ();
 my $configfile = '/etc/comic-strip.ini';
 GetOptions("config=s" => \$configfile);
 
+# Read config file
 open CONFIG, "<$configfile" or die "Could not open $configfile: $!";
 
 while(<CONFIG>) {
@@ -26,6 +27,21 @@ while(<CONFIG>) {
 
 close CONFIG;
 
+# Init utility objects
+
+my $ua = LWP::UserAgent->new;
+$ua->agent($opts{'app_name'} . ' ');
+$ua->from($opts{'admin_email'});
+$ua->timeout(10);
+
+my $url = URI->new('http://query.yahooapis.com/v1/public/yql'); 
+
+my $json = new JSON;
+$json->utf8();
+
+
+
+
 my $dbh = DBI->connect("dbi:mysql:$opts{'db_name'};host=$opts{'db_host'}", $opts{'db_user'}, $opts{'db_password'}) || die "Could not connect to db: $!";
 
 # 1. get last 3 from db
@@ -35,21 +51,14 @@ my $db_strips = $dbh->selectall_arrayref($sql, { Slice => {} });
 # 2. get everything from flickr
 
 my $yql = 'SELECT * From flickr.photosets.photos Where photoset_id=@photoset';
-my $url = URI->new('http://query.yahooapis.com/v1/public/yql'); 
 $url->query_form( q => $yql, photoset => $opts{'photoset_id'}, format => 'json', callback => '' );
 
-my $ua = LWP::UserAgent->new;
-$ua->agent($opts{'app_name'} . ' ');
-$ua->from($opts{'admin_email'});
-$ua->timeout(10);
 my $response = $ua->get($url->canonical);
 
 if($response->code != 200) {
 	die 'YQL said ' . $response->code . "\n";
 }
 
-my $json = new JSON;
-$json->utf8();
 my $flickr_strips = $json->decode($response->content);
 my @flickr_strips = @{$flickr_strips->{'query'}{'results'}{'photo'}};
 
@@ -67,5 +76,43 @@ if(scalar @$db_strips) {
 @flickr_strips = @flickr_strips[$start_index..$end_index] if $start_index > 0;
 
 # 4. fetch additional info for each photo not in db
+$yql = sprintf 'SELECT id, description, dates.posted From flickr.photos.info Where photo_id IN (%s)',
+		join ',', map { $_->['id'] } @flickr_strips;
+$url->query_form( q => $yql, format => 'json', callback => '' );
+
+my $response = $ua->get($url->canonical);
+
+if($response->code != 200) {
+	die 'YQL said ' . $response->code . "\n";
+}
+
+my $flickr_more = $json->decode($response->content);
+my %flickr_more = map { ( $_->{'id'}, $_ ) } @{$flickr_more->{'query'}{'results'}{'photo'}};
+
+for (@flickr_strips) {
+	if(exists $flickr_more{$_->{'id'}}) {
+		$_->{'description'} = $flickr_more{$_->{'id'}}{'description'};
+		$_->{'date_posted'} = $flickr_more{$_->{'id'}}{'dates'}{'posted'};
+	}
+}
+
+@flickr_strips = sort { $a->{'date_posted'} <=> $b->{'date_posted'} } @flickr_strips;
+
 
 # 5. store new photos in db
+
+$sql = sprintf
+	'INSERT INTO strip (
+		date_posted,
+		id, farm, secret, server,
+		title, description
+	) VALUES (
+		%s
+	)',
+	join '), (', map {
+		my $tuple = $_;
+		join ',', map { $dbh->quote($tuple->{$_} || '') } qw(date_posted id farm secret server title description)
+	} @flickr_strips;
+
+
+$dbh->disconnect();
