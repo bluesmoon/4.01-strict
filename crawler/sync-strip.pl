@@ -64,7 +64,7 @@ if(scalar @$db_strips) {
 	$start_index++;
 }
 
-my @flickr_strips = @flickr_strips[$start_index..$end_index];
+@flickr_strips = @flickr_strips[$start_index..$end_index] if $start_index > 0;
 
 # 4. fetch additional info for each photo not in db
 
